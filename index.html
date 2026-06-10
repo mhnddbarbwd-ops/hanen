@@ -11,7 +11,6 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
 
-        /* ===== لوحة الألوان ===== */
         :root {
             --primary: #F85C05;
             --primary-hover: #DE3401;
@@ -82,7 +81,7 @@
         .modal h3 { font-size: 18px; font-weight: 800; margin-bottom: 12px; color: var(--text); }
         .modal p { font-size: 14px; color: var(--text-muted); margin-bottom: 24px; }
         .modal-actions { display: flex; gap: 12px; justify-content: center; }
-        .btn-modal-confirm { background: var(--primary); color: white; padding: 10px 24px; border-radius: var(--radius-lg); font-weight: 700; border: none; cursor: pointer; }
+        .btn-modal-confirm { background: var(--danger); color: white; padding: 10px 24px; border-radius: var(--radius-lg); font-weight: 700; border: none; cursor: pointer; }
         .btn-modal-cancel { background: var(--surface); color: var(--text); border: 1px solid var(--border); padding: 10px 24px; border-radius: var(--radius-lg); font-weight: 700; cursor: pointer; }
 
         header {
@@ -219,26 +218,58 @@
             <div class="profit-info"><span>التكلفة</span><span id="profitPct">الربح 0%</span></div>
         </div>
 
-        <div class="actions">
-            <button class="btn-base btn-primary" id="saveBtn" onclick="saveProduct()">💾 حفظ الطلب</button>
-            <button class="btn-base btn-update" id="updateBtn" style="display:none" onclick="updateProduct()">✏️ تحديث</button>
-            <button class="btn-base btn-cancel" id="cancelBtn" style="display:none" onclick="cancelEdit()">↩️ إلغاء</button>
-            <button class="btn-base btn-secondary" id="clearBtn" onclick="clearForm()">🗑️ مسح</button>
+        <div class="actions" id="actionButtons">
+            <button class="btn-base btn-primary" id="saveProductBtn" onclick="saveProduct()">
+                <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                حفظ الطلب
+            </button>
+            <button class="btn-base btn-update" id="updateProductBtn" onclick="updateProduct()" style="display:none;">
+                <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                تحديث الطلب
+            </button>
+            <button class="btn-base btn-cancel" id="cancelEditBtn" onclick="cancelEdit()" style="display:none;">
+                <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                إلغاء التعديل
+            </button>
+            <button class="btn-base btn-secondary" id="clearBtn" onclick="clearForm()">
+                <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                مسح الحقول
+            </button>
         </div>
 
-        <div class="products-section">
-            <div class="section-header"><h3>قائمتك (<span id="productCount">0</span>)</h3><button onclick="exportCSV()">📥 Excel</button></div>
+        <div class="products-section" style="margin-top:40px">
+            <div class="section-header" style="display:flex; justify-content:space-between; margin-bottom:18px">
+                <h3 style="font-weight:800">قائمتك (<span id="productCount">0</span>)</h3>
+                <button class="btn-base btn-secondary" onclick="exportCSV()" style="width:auto; padding:8px 14px; font-size:12px">
+                    <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    تصدير Excel
+                </button>
+            </div>
             <div id="productsList"><div class="empty-state">لا توجد أصناف</div></div>
         </div>
     </div>
 
     <div class="overlay" id="overlay" onclick="toggleControlPanel()"></div>
     <div class="bottom-sheet" id="controlPanel">
-        <h3>الإعدادات</h3>
-        <div class="row2"><div class="field"><label>سعر الصرف</label><input type="number" id="exchangeRate" value="141.5" onchange="saveSettings()"></div><div class="field"><label>تكاليف إضافية</label><input type="number" id="otherCosts" value="0" onchange="saveSettings()"></div></div>
-        <div class="field"><label>شحن افتراضي</label><input type="number" id="defaultShipping" value="0" onchange="saveSettings()"></div>
-        <div class="field"><label>الهامش %</label><input type="range" id="marginRange" min="0" max="200" value="30" oninput="syncSlider(this.value)"><input type="number" id="marginInput" value="30" onchange="saveSettings()"></div>
-        <div class="row2"><div class="field"><label>الضريبة %</label><input type="number" id="tax" value="0" onchange="saveSettings()"></div><div class="field"><label>التقريب</label><select id="rounding" onchange="saveSettings()"><option value="none">بدون</option><option value="up50" selected>لأقرب 50</option><option value="up100">لأقرب 100</option></select></div></div>
+        <div style="width:40px;height:5px;background:var(--border);border-radius:99px;margin:0 auto 24px"></div>
+        <h3 style="font-weight:800; margin-bottom:28px">الإعدادات الاستراتيجية</h3>
+        <div class="row2">
+            <div class="field"><label>سعر الصرف</label><input type="number" id="exchangeRate" value="141.5" min="1" onchange="saveSettings()"></div>
+            <div class="field"><label>تكاليف إضافية</label><input type="number" id="otherCosts" value="0" min="0" onchange="saveSettings()"></div>
+        </div>
+        <div class="field"><label>شحن افتراضي</label><input type="number" id="defaultShipping" value="0" min="0" onchange="saveSettings()"></div>
+        <div class="field">
+            <div style="display:flex; justify-content:space-between; margin-bottom:8px">
+                <label style="margin:0">هامش الربح المستهدف</label>
+                <span id="marginLabel" style="color:var(--primary); font-weight:800">30%</span>
+            </div>
+            <input type="range" id="marginRange" min="0" max="200" value="30" oninput="syncSlider(this.value)">
+            <input type="number" id="marginInput" value="30" min="0" onchange="saveSettings()" style="margin-top:12px">
+        </div>
+        <div class="row2">
+            <div class="field"><label>الضريبة %</label><input type="number" id="tax" value="0" min="0" max="100" onchange="saveSettings()"></div>
+            <div class="field"><label>التقريب</label><select id="rounding" onchange="saveSettings()"><option value="none">بدون</option><option value="up50" selected>لأقرب 50</option><option value="up100">لأقرب 100</option></select></div>
+        </div>
     </div>
 
     <script>
@@ -257,30 +288,160 @@
         let settings = { exchangeRate:141.5, otherCosts:0, defaultShipping:0, margin:30, tax:0, rounding:'up50' };
         let products = [], editingId = null, deleteId = null;
 
-        // الإعدادات
+        // إعدادات
         db.collection('settings').doc('global').onSnapshot(doc => {
             if(doc.exists) Object.assign(settings, doc.data());
             else db.collection('settings').doc('global').set(settings);
             applySettingsUI(); calculate();
         });
+
         function applySettingsUI() {
             document.getElementById('exchangeRate').value = settings.exchangeRate;
             document.getElementById('otherCosts').value = settings.otherCosts;
             document.getElementById('defaultShipping').value = settings.defaultShipping;
             document.getElementById('marginInput').value = settings.margin;
             document.getElementById('marginRange').value = settings.margin;
+            document.getElementById('marginLabel').textContent = settings.margin + '%';
             document.getElementById('tax').value = settings.tax;
             document.getElementById('rounding').value = settings.rounding;
+            if(!editingId) document.getElementById('shipping').value = settings.defaultShipping;
         }
-        function saveSettings() { /* تحديث كائن settings */ calculate(); }
 
-        // الحساب
-        function applyRounding(v) { if(settings.rounding==='none') return v; const n=parseInt(settings.rounding.replace('up','')); return Math.ceil(v/n)*n; }
+        function saveSettings() {
+            settings.exchangeRate = +document.getElementById('exchangeRate').value || 141.5;
+            settings.otherCosts = +document.getElementById('otherCosts').value || 0;
+            settings.defaultShipping = +document.getElementById('defaultShipping').value || 0;
+            settings.margin = +document.getElementById('marginInput').value || 30;
+            settings.tax = +document.getElementById('tax').value || 0;
+            settings.rounding = document.getElementById('rounding').value;
+            db.collection('settings').doc('global').set(settings, {merge:true});
+            document.getElementById('marginLabel').textContent = settings.margin + '%';
+            calculate();
+        }
+
+        function syncSlider(v) { document.getElementById('marginInput').value=v; saveSettings(); }
+
+        function applyRounding(v) {
+            if(settings.rounding==='none') return v;
+            const n = parseInt(settings.rounding.replace('up','')) || 1;
+            return Math.ceil(v/n)*n;
+        }
         function fmt(n) { return n.toLocaleString('ar-EG',{maximumFractionDigits:0}); }
-        function calculate() { /* حساب الأسعار */ }
 
-        // المنتجات
-        db.collection('products').orderBy('createdAt','desc').onSnapshot(snap => { products = snap.docs.map(d=>({id:d.id,...d.data()})); renderProducts(); });
+        function calculate() {
+            const price = +document.getElementById('priceSAR').value || 0;
+            const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            const custPriceRaw = document.getElementById('customerPrice').value.trim();
+            const custPrice = custPriceRaw === '' ? null : +custPriceRaw;
+            const cost = price*settings.exchangeRate + ship + settings.otherCosts;
+            const taxAmt = cost*(settings.tax/100);
+            const withTax = cost+taxAmt;
+            const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
+            const suggested = applyRounding(raw);
+            const final = custPrice !== null ? custPrice : suggested;
+            const profit = final - withTax;
+            document.getElementById('finalPrice').innerHTML = `${fmt(final)} <span class="currency">ر.ي</span>`;
+            document.getElementById('priceTypeLabel').textContent = custPrice !== null ? 'السعر الفعلي للعميل' : 'سعر البيع الموصى به';
+            document.getElementById('totalCost').textContent = `${fmt(cost)} ر.ي`;
+            document.getElementById('taxAmount').textContent = `${fmt(taxAmt)} ر.ي`;
+            document.getElementById('profitBar').style.width = final>0 ? Math.min((profit/final)*100,100)+'%' : '0%';
+            document.getElementById('profitPct').textContent = `الربح ${final>0?(profit/final*100).toFixed(0):0}%`;
+        }
+
+        function clearForm() {
+            document.getElementById('productName').value = '';
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerPhone').value = '';
+            document.getElementById('priceSAR').value = '';
+            document.getElementById('customerPrice').value = '';
+            document.getElementById('shipping').value = settings.defaultShipping;
+            cancelEdit();
+            calculate();
+        }
+
+        function cancelEdit() {
+            editingId = null;
+            document.getElementById('saveProductBtn').style.display = '';
+            document.getElementById('updateProductBtn').style.display = 'none';
+            document.getElementById('cancelEditBtn').style.display = 'none';
+            document.getElementById('clearBtn').style.display = '';
+        }
+
+        function editProduct(product) {
+            editingId = product.id;
+            document.getElementById('customerName').value = product.customerName || '';
+            document.getElementById('customerPhone').value = product.customerPhone || '';
+            document.getElementById('productName').value = product.name;
+            document.getElementById('priceSAR').value = product.priceSAR;
+            document.getElementById('shipping').value = product.shipping;
+            document.getElementById('customerPrice').value = product.customerPrice || '';
+            document.getElementById('saveProductBtn').style.display = 'none';
+            document.getElementById('updateProductBtn').style.display = '';
+            document.getElementById('cancelEditBtn').style.display = '';
+            document.getElementById('clearBtn').style.display = 'none';
+            calculate();
+            window.scrollTo({top:0, behavior:'smooth'});
+        }
+
+        async function saveProduct() {
+            const name = document.getElementById('productName').value.trim() || 'منتج';
+            const price = +document.getElementById('priceSAR').value || 0;
+            const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            const custPriceRaw = document.getElementById('customerPrice').value.trim();
+            const custPrice = custPriceRaw === '' ? null : +custPriceRaw;
+            const cost = price*settings.exchangeRate + ship + settings.otherCosts;
+            const taxAmt = cost*(settings.tax/100);
+            const withTax = cost+taxAmt;
+            const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
+            const suggested = applyRounding(raw);
+            const final = custPrice !== null ? custPrice : suggested;
+            await db.collection('products').add({
+                name, priceSAR:price, shipping:ship, totalCost:cost, finalPrice:final,
+                customerName: document.getElementById('customerName').value.trim(),
+                customerPhone: document.getElementById('customerPhone').value.trim(),
+                customerPrice: custPrice, profit: final - withTax,
+                margin: settings.margin, tax: settings.tax,
+                date: new Date().toLocaleDateString('ar'), createdAt: new Date()
+            });
+            clearForm();
+        }
+
+        async function updateProduct() {
+            if(!editingId) return;
+            const name = document.getElementById('productName').value.trim() || 'منتج';
+            const price = +document.getElementById('priceSAR').value || 0;
+            const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            const custPriceRaw = document.getElementById('customerPrice').value.trim();
+            const custPrice = custPriceRaw === '' ? null : +custPriceRaw;
+            const cost = price*settings.exchangeRate + ship + settings.otherCosts;
+            const taxAmt = cost*(settings.tax/100);
+            const withTax = cost+taxAmt;
+            const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
+            const suggested = applyRounding(raw);
+            const final = custPrice !== null ? custPrice : suggested;
+            await db.collection('products').doc(editingId).update({
+                name, priceSAR:price, shipping:ship, totalCost:cost, finalPrice:final,
+                customerName: document.getElementById('customerName').value.trim(),
+                customerPhone: document.getElementById('customerPhone').value.trim(),
+                customerPrice: custPrice, profit: final - withTax,
+                margin: settings.margin, tax: settings.tax,
+                updatedAt: new Date()
+            });
+            cancelEdit();
+            clearForm();
+        }
+
+        function showDeleteModal(id) { deleteId = id; document.getElementById('deleteModal').classList.add('active'); }
+        function closeDeleteModal() { deleteId = null; document.getElementById('deleteModal').classList.remove('active'); }
+        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+            if(deleteId) { await db.collection('products').doc(deleteId).delete(); closeDeleteModal(); }
+        });
+
+        db.collection('products').orderBy('createdAt','desc').onSnapshot(snap => {
+            products = snap.docs.map(d => ({id:d.id, ...d.data()}));
+            renderProducts();
+        });
+
         function renderProducts() {
             document.getElementById('productCount').textContent = products.length;
             const list = document.getElementById('productsList');
@@ -294,7 +455,7 @@
                     </div>
                     <div style="display:flex; align-items:center; gap:12px">
                         <div class="p-price">${fmt(p.customerPrice != null ? p.customerPrice : p.finalPrice)} ر.ي</div>
-                        <button class="icon-btn edit-btn" onclick="editProduct('${p.id}')">
+                        <button class="icon-btn edit-btn" onclick="editProduct(products.find(x=>x.id==='${p.id}'))">
                             <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                         </button>
                         <button class="icon-btn delete-btn" onclick="showDeleteModal('${p.id}')">
@@ -304,18 +465,14 @@
                 </div>`).join('');
         }
 
-        function showDeleteModal(id) { deleteId = id; document.getElementById('deleteModal').classList.add('active'); }
-        function closeDeleteModal() { deleteId = null; document.getElementById('deleteModal').classList.remove('active'); }
-        document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
-            if(deleteId) { await db.collection('products').doc(deleteId).delete(); closeDeleteModal(); }
-        });
+        function exportCSV() {
+            if(!products.length) return alert('لا توجد منتجات');
+            let csv = '\uFEFFاسم العميل,رقم العميل,المنتج,الشراء,التكلفة,البيع,الربح,الهامش\n';
+            products.forEach(p => csv += `${p.customerName||''},${p.customerPhone||''},${p.name},${p.priceSAR},${fmt(p.totalCost)},${fmt(p.finalPrice)},${fmt(p.profit)},${p.margin}%\n`);
+            const blob = new Blob([csv],{type:'text/csv'});
+            const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='pricing.csv'; a.click();
+        }
 
-        function editProduct(id) { /* تعبئة النموذج */ }
-        function cancelEdit() { /* إلغاء التحرير */ }
-        async function saveProduct() { /* حفظ منتج */ }
-        async function updateProduct() { /* تحديث منتج */ }
-
-        // الثيم
         function toggleTheme() {
             const html = document.documentElement;
             const isLight = html.getAttribute('data-theme') === 'light';
@@ -325,13 +482,17 @@
                 '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
             localStorage.setItem('theme', isLight ? 'dark' : 'light');
         }
-        // تحميل الثيم
         if(localStorage.getItem('theme') === 'dark') {
             document.documentElement.setAttribute('data-theme', 'dark');
             document.getElementById('themeIcon').innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
         }
 
-        function toggleControlPanel() { document.getElementById('controlPanel').classList.toggle('open'); document.getElementById('overlay').classList.toggle('open'); }
+        function toggleControlPanel() {
+            document.getElementById('controlPanel').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('open');
+        }
+
+        calculate();
     </script>
 </body>
 </html>
