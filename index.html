@@ -122,6 +122,11 @@
         .big-price .label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
         .big-price .amount { font-size: clamp(38px, 8vw, 46px); font-weight: 900; color: var(--text); line-height: 1; }
         .big-price .currency { font-size: 20px; color: var(--primary); font-weight: 700; margin-right: 4px; }
+        .suggested-price-note {
+            font-size: 12px; color: var(--text-muted); text-align: center;
+            margin-top: -20px; margin-bottom: 20px; display: none;
+        }
+        .suggested-price-note.show { display: block; }
         .result-row {
             display: flex; justify-content: space-between; align-items: center;
             padding: 12px 0; border-bottom: 1px solid var(--border);
@@ -178,6 +183,7 @@
         .p-customer { font-size: 12px; color: var(--primary); font-weight: 600; margin-bottom: 4px; }
         .product-right { display: flex; align-items: center; gap: 12px; }
         .p-price { font-weight: 800; color: var(--primary); font-size: 15px; }
+        .p-custom-badge { background: var(--gold); color: #fff; font-size: 10px; padding: 2px 6px; border-radius: 6px; margin-right: 6px; }
         .action-btns { display: flex; gap: 6px; }
         .icon-btn {
             background: transparent; color: var(--text-muted); border: none;
@@ -250,7 +256,6 @@
 
     <div class="container">
         <div class="card">
-            <!-- حقول العميل الجديدة -->
             <div class="row2">
                 <div class="field">
                     <label>اسم العميل</label>
@@ -275,12 +280,20 @@
                     <input type="number" id="shipping" placeholder="0.00" min="0" value="0" oninput="calculate()">
                 </div>
             </div>
+            <!-- السعر الفعلي للعميل -->
+            <div class="field">
+                <label>السعر الفعلي للعميل (اختياري) <span style="font-weight:400;color:var(--text-muted)">- اتركه فارغاً لاستخدام السعر المقترح</span></label>
+                <input type="number" id="customerPrice" placeholder="مثلاً 50000" min="0" oninput="calculate()">
+            </div>
         </div>
 
         <div class="result-card" id="resultCard">
             <div class="big-price">
-                <div class="label">سعر البيع الموصى به</div>
+                <div class="label" id="priceTypeLabel">سعر البيع الموصى به</div>
                 <div class="amount" id="finalPrice">0<span class="currency">ر.ي</span></div>
+            </div>
+            <div class="suggested-price-note" id="suggestedNote">
+                السعر المقترح: <span id="suggestedPriceDisplay">0</span> ر.ي
             </div>
             <div class="result-row">
                 <span>إجمالي التكاليف المحلية</span>
@@ -465,19 +478,50 @@
         function calculate() {
             const price = +document.getElementById('priceSAR').value || 0;
             const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            const customerPriceInput = document.getElementById('customerPrice');
+            const customerPriceVal = customerPriceInput.value.trim() === '' ? null : (+customerPriceInput.value);
+
             const cost = price*settings.exchangeRate + ship + settings.otherCosts;
             const taxAmt = cost*(settings.tax/100);
             const withTax = cost+taxAmt;
             const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
-            const final = applyRounding(raw);
-            const profit = final-withTax;
-            const roi = withTax>0 ? (profit/withTax*100) : 0;
-            document.getElementById('finalPrice').innerHTML = `${fmt(final)} <span class="currency">ر.ي</span>`;
+            const suggestedPrice = applyRounding(raw);
+
+            let finalPrice, actualMargin, profit, roi;
+            let isCustom = false;
+
+            if (customerPriceVal !== null && customerPriceVal > 0) {
+                finalPrice = customerPriceVal;
+                isCustom = true;
+            } else {
+                finalPrice = suggestedPrice;
+                isCustom = false;
+            }
+
+            profit = finalPrice - withTax;
+            actualMargin = finalPrice > 0 ? (profit / finalPrice * 100) : 0;
+            roi = withTax > 0 ? (profit / withTax * 100) : 0;
+
+            // عرض السعر الرئيسي
+            document.getElementById('finalPrice').innerHTML = `${fmt(finalPrice)} <span class="currency">ر.ي</span>`;
+            document.getElementById('priceTypeLabel').textContent = isCustom ? 'السعر الفعلي للعميل' : 'سعر البيع الموصى به';
+
+            // إظهار السعر المقترح إذا كان هناك تخصيص
+            const note = document.getElementById('suggestedNote');
+            if (isCustom) {
+                note.classList.add('show');
+                document.getElementById('suggestedPriceDisplay').textContent = fmt(suggestedPrice);
+            } else {
+                note.classList.remove('show');
+            }
+
             document.getElementById('totalCost').textContent = `${fmt(cost)} ر.ي`;
             document.getElementById('taxAmount').textContent = `${fmt(taxAmt)} ر.ي`;
-            document.getElementById('profitBar').style.width = final>0 ? Math.min((profit/final)*100,100)+'%' : '0%';
-            document.getElementById('profitBar').style.background = profit>=0 ? 'var(--success)' : 'var(--danger)';
-            document.getElementById('profitPct').textContent = `الربح ${final>0?(profit/final*100).toFixed(0):0}%`;
+
+            const pct = finalPrice > 0 ? Math.min((profit / finalPrice) * 100, 100) : 0;
+            document.getElementById('profitBar').style.width = Math.max(0, pct) + '%';
+            document.getElementById('profitBar').style.background = profit >= 0 ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('profitPct').textContent = `الربح ${actualMargin.toFixed(0)}%`;
             document.getElementById('panelProfit').textContent = `${fmt(profit)} ر.ي`;
             document.getElementById('panelRoi').textContent = `${roi.toFixed(1)}%`;
         }
@@ -487,6 +531,7 @@
             document.getElementById('customerName').value = '';
             document.getElementById('customerPhone').value = '';
             document.getElementById('priceSAR').value = '';
+            document.getElementById('customerPrice').value = '';
             const shipInput = document.getElementById('shipping');
             shipInput.value = settings.defaultShipping;
             shipInput.dataset.userEdited = '';
@@ -512,6 +557,7 @@
             document.getElementById('priceSAR').value = product.priceSAR;
             document.getElementById('shipping').value = product.shipping;
             document.getElementById('shipping').dataset.userEdited = 'true';
+            document.getElementById('customerPrice').value = product.customerPrice || '';
             document.getElementById('saveProductBtn').style.display = 'none';
             document.getElementById('updateProductBtn').style.display = '';
             document.getElementById('cancelEditBtn').style.display = '';
@@ -530,19 +576,26 @@
             const name = document.getElementById('productName').value.trim() || 'صنف غير مسمى';
             const price = +document.getElementById('priceSAR').value || 0;
             const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            const custPriceRaw = document.getElementById('customerPrice').value.trim();
+            const customerPrice = custPriceRaw === '' ? null : +custPriceRaw;
+
             if(!price && !ship) return alert('الرجاء إدخال سعر الشراء أو تكلفة الشحن');
             const cost = price*settings.exchangeRate + ship + settings.otherCosts;
             const taxAmt = cost*(settings.tax/100);
             const withTax = cost+taxAmt;
             const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
-            const final = applyRounding(raw);
+            const suggestedPrice = applyRounding(raw);
+            const finalPrice = customerPrice !== null ? customerPrice : suggestedPrice;
+            const profit = finalPrice - withTax;
+
             const btn = document.getElementById('updateProductBtn');
             btn.disabled = true;
             btn.textContent = 'جارٍ التحديث...';
             await db.collection('products').doc(editingProductId).update({
                 customerName, customerPhone,
-                name, priceSAR:price, shipping:ship, totalCost:cost, finalPrice:final,
-                profit:final-withTax, margin:settings.margin, tax:settings.tax,
+                name, priceSAR:price, shipping:ship, totalCost:cost,
+                customerPrice: customerPrice, finalPrice, profit,
+                margin:settings.margin, tax:settings.tax,
                 date: new Date().toLocaleDateString('ar'), updatedAt: new Date()
             });
             btn.disabled = false;
@@ -561,25 +614,29 @@
             document.getElementById('productCount').textContent = products.length;
             const list = document.getElementById('productsList');
             if(!products.length) { list.innerHTML = '<div class="empty-state">لا توجد أصناف مسجلة حتى الآن ✨</div>'; return; }
-            list.innerHTML = products.map(p => `
-            <div class="product-item ${editingProductId===p.id?'editing':''}" data-id="${p.id}">
-                <div>
-                    ${p.customerName ? `<div class="p-customer">👤 ${p.customerName} ${p.customerPhone ? ' - ' + p.customerPhone : ''}</div>` : ''}
-                    <div class="p-name">${p.name}</div>
-                    <div class="p-meta">شراء: ${p.priceSAR} ر.س | تكلفة: ${fmt(p.totalCost)} ر.ي | هامش: ${p.margin}%</div>
-                </div>
-                <div class="product-right">
-                    <div class="p-price">${fmt(p.finalPrice)} ر.ي</div>
-                    <div class="action-btns">
-                        <button class="icon-btn" onclick="editProduct(products.find(x=>x.id==='${p.id}'))" title="تعديل">
-                            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                        </button>
-                        <button class="icon-btn delete" onclick="deleteProduct('${p.id}')" title="حذف">
-                            <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </button>
+            list.innerHTML = products.map(p => {
+                const displayPrice = p.customerPrice != null ? p.customerPrice : p.finalPrice;
+                const customBadge = p.customerPrice != null ? '<span class="p-custom-badge">مخصص</span>' : '';
+                return `
+                <div class="product-item ${editingProductId===p.id?'editing':''}" data-id="${p.id}">
+                    <div>
+                        ${p.customerName ? `<div class="p-customer">👤 ${p.customerName} ${p.customerPhone ? ' - ' + p.customerPhone : ''}</div>` : ''}
+                        <div class="p-name">${p.name}</div>
+                        <div class="p-meta">شراء: ${p.priceSAR} ر.س | تكلفة: ${fmt(p.totalCost)} ر.ي | هامش: ${p.margin}%</div>
                     </div>
-                </div>
-            </div>`).join('');
+                    <div class="product-right">
+                        <div class="p-price">${fmt(displayPrice)} ر.ي ${customBadge}</div>
+                        <div class="action-btns">
+                            <button class="icon-btn" onclick="editProduct(products.find(x=>x.id==='${p.id}'))" title="تعديل">
+                                <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                            </button>
+                            <button class="icon-btn delete" onclick="deleteProduct('${p.id}')" title="حذف">
+                                <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
         function updateSyncStatus(status, text) {
@@ -596,19 +653,26 @@
             const name = document.getElementById('productName').value.trim() || 'صنف غير مسمى';
             const price = +document.getElementById('priceSAR').value || 0;
             const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            const custPriceRaw = document.getElementById('customerPrice').value.trim();
+            const customerPrice = custPriceRaw === '' ? null : +custPriceRaw;
+
             if(!price && !ship) return alert('الرجاء إدخال سعر الشراء أو تكلفة الشحن');
             const cost = price*settings.exchangeRate + ship + settings.otherCosts;
             const taxAmt = cost*(settings.tax/100);
             const withTax = cost+taxAmt;
             const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
-            const final = applyRounding(raw);
+            const suggestedPrice = applyRounding(raw);
+            const finalPrice = customerPrice !== null ? customerPrice : suggestedPrice;
+            const profit = finalPrice - withTax;
+
             const btn = document.getElementById('saveProductBtn');
             btn.disabled = true;
             btn.textContent = 'جارٍ الحفظ...';
             await db.collection('products').add({
                 customerName, customerPhone,
-                name, priceSAR:price, shipping:ship, totalCost:cost, finalPrice:final,
-                profit:final-withTax, margin:settings.margin, tax:settings.tax,
+                name, priceSAR:price, shipping:ship, totalCost:cost,
+                customerPrice: customerPrice, finalPrice, profit,
+                margin:settings.margin, tax:settings.tax,
                 date: new Date().toLocaleDateString('ar'), createdAt: new Date()
             });
             btn.disabled = false;
@@ -624,8 +688,16 @@
 
         function exportCSV() {
             if(!products.length) return alert('لا توجد منتجات لتصديرها');
-            let csv = '\uFEFFاسم العميل,رقم العميل,المنتج,الشراء (SAR),التكلفة (YER),البيع (YER),الربح,الهامش,التاريخ\n';
-            products.forEach(p => csv += `${p.customerName||''},${p.customerPhone||''},${p.name},${p.priceSAR},${fmt(p.totalCost)},${fmt(p.finalPrice)},${fmt(p.profit)},${p.margin}%,${p.date}\n`);
+            let csv = '\uFEFFاسم العميل,رقم العميل,المنتج,الشراء (SAR),التكلفة (YER),السعر المقترح,السعر الفعلي,الربح,الهامش,التاريخ\n';
+            products.forEach(p => {
+                const suggested = p.finalPrice; // but finalPrice could be custom or suggested; we need original suggested if custom.
+                // To keep it simple: we stored finalPrice as the actual sold price; we don't have a separate field for suggested in the document.
+                // We can compute suggested: cost / (1 - margin/100) rounded.
+                const cost = p.totalCost;
+                const rawSuggested = settings.margin > 0 ? cost/(1 - settings.margin/100) : cost;
+                const suggestedPrice = applyRounding(rawSuggested);
+                csv += `${p.customerName||''},${p.customerPhone||''},${p.name},${p.priceSAR},${fmt(p.totalCost)},${fmt(suggestedPrice)},${p.customerPrice != null ? fmt(p.customerPrice) : ''},${fmt(p.profit)},${p.margin}%,${p.date}\n`;
+            });
             const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
             const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Pricing_Dashboard.csv'; a.click();
         }
