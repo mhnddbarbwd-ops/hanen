@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>متجر حنين - حاسبة التسعير الذكية</title>
+
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon.png">
+    <link rel="apple-touch-icon" href="icon.png">
+    <meta name="theme-color" content="#4f46e5">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800;900&display=swap');
+
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --card: #ffffff;
+            --border: #e2e8f0;
+            --border-focus: #6366f1;
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --accent: #6366f1;
+            --gold: #f59e0b;
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --success: #10b981;
+            --danger: #f43f5e;
+            --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03);
+            --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.05), 0 10px 10px -5px rgba(0,0,0,0.02);
+            --overlay-bg: rgba(15,23,42,0.3);
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+        }
+        [data-theme="dark"] {
+            --bg: #09090b; --surface: #141417; --card: #18181b; --border: #27272a;
+            --border-focus: #818cf8; --primary: #6366f1; --primary-hover: #4f46e5;
+            --accent: #818cf8; --gold: #fbbf24; --text: #f4f4f5; --text-muted: #a1a1aa;
+            --success: #34d399; --danger: #fb7185;
+            --shadow-sm: 0 0 0 1px rgba(255,255,255,0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.2);
+            --shadow-lg: 0 20px 25px -5px rgba(0,0,0,0.4);
+            --overlay-bg: rgba(0,0,0,0.6);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+        /* تغطية الشاشة كاملة وتجنب الفراغات السوداء */
+        html {
+            background: var(--bg);
+        }
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: var(--bg) !important;
+            color: var(--text);
+            min-height: 100vh;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            padding-bottom: 60px;
+            /* معالجة المساحات الآمنة للشاشات التي تحتوي على نتوءات أو أشرطة تنقل */
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 24px; background: rgba(255,255,255,0.8);
+            backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100;
+        }
+        [data-theme="dark"] header { background: rgba(20,20,23,0.8); }
+        .brand {
+            display: flex; align-items: center; gap: 10px;
+            font-size: 20px; font-weight: 900;
+            background: linear-gradient(135deg, var(--primary), #a855f7);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text; letter-spacing: -0.5px;
+        }
+        .brand svg { width: 24px; height: 24px; fill: none; stroke: var(--primary); stroke-width: 2; }
+        .nav-btn {
+            background: var(--surface); border: 1px solid var(--border); color: var(--text);
+            width: 40px; height: 40px; border-radius: 12px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: all 0.2s; box-shadow: var(--shadow-sm);
+        }
+        .nav-btn:hover { border-color: var(--accent); color: var(--accent); transform: translateY(-1px); }
+        .nav-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+        .container { max-width: 560px; margin: 32px auto 0; padding: 0 20px; }
+        .card {
+            background: var(--card); border: 1px solid var(--border);
+            border-radius: var(--radius-xl); padding: 28px; margin-bottom: 24px;
+            box-shadow: var(--shadow-md);
+        }
+        .field { margin-bottom: 20px; }
+        .field:last-child { margin-bottom: 0; }
+        label { display: block; font-size: 13px; font-weight: 600; color: var(--text-muted); margin-bottom: 8px; }
+        input[type="number"], input[type="text"], select {
+            width: 100%; background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius-lg); color: var(--text);
+            font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 500;
+            padding: 14px 16px; transition: all 0.2s; outline: none; box-shadow: var(--shadow-sm);
+        }
+        input:focus, select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 4px rgba(99,102,241,0.12); }
+        .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+        .overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--overlay-bg); backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px); opacity: 0; pointer-events: none;
+            transition: opacity 0.3s; z-index: 998;
+        }
+        .overlay.open { opacity: 1; pointer-events: all; }
+        .bottom-sheet {
+            position: fixed; bottom: 0; left: 0; right: 0; background: var(--surface);
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0; padding: 32px 28px 48px;
+            transform: translateY(100%); transition: transform 0.4s cubic-bezier(0.16,1,0.3,1);
+            z-index: 1000; box-shadow: 0 -10px 40px rgba(0,0,0,0.15);
+            max-height: 85vh; overflow-y: auto;
+        }
+        .bottom-sheet.open { transform: translateY(0); }
+        .sheet-indicator { width: 40px; height: 5px; background: var(--border); border-radius: 99px; margin: -16px auto 24px; }
+        .sheet-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+        .sheet-header h3 { font-size: 18px; font-weight: 800; }
+
+        .result-card {
+            background: var(--card); border: 2px solid var(--primary);
+            border-radius: var(--radius-xl); padding: 32px 28px; margin-top: 8px;
+            box-shadow: var(--shadow-lg); position: relative; overflow: hidden;
+        }
+        .big-price { text-align: center; margin-bottom: 28px; }
+        .big-price .label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+        .big-price .amount { font-size: clamp(38px, 8vw, 46px); font-weight: 900; color: var(--text); line-height: 1; }
+        .big-price .currency { font-size: 20px; color: var(--primary); font-weight: 700; margin-right: 4px; }
+        .result-row {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0; border-bottom: 1px solid var(--border);
+            font-size: 14px; font-weight: 500; color: var(--text-muted);
+        }
+        .result-row:last-child { border-bottom: none; }
+        .result-val { font-weight: 700; color: var(--text); font-size: 15px; }
+        .profit-bar { margin-top: 24px; background: var(--border); border-radius: 99px; height: 6px; overflow: hidden; }
+        .profit-fill { height: 100%; background: var(--success); transition: width 0.3s ease; }
+        .profit-info { display: flex; justify-content: space-between; font-size: 12px; margin-top: 8px; font-weight: 600; color: var(--text-muted); }
+
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; }
+        button.btn-base {
+            font-family: 'Cairo', sans-serif; font-size: 14px; font-weight: 700;
+            padding: 14px 20px; border-radius: var(--radius-lg); border: none;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            cursor: pointer; transition: all 0.2s; box-shadow: var(--shadow-sm);
+        }
+        button.btn-base svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+        .btn-primary { background: var(--primary); color: #fff; grid-column: span 2; font-size: 15px !important; }
+        .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(79,70,229,0.25); }
+        .btn-save { background: var(--surface); color: var(--success); border: 1px solid var(--border); }
+        .btn-save:hover { border-color: var(--success); background: rgba(16,185,129,0.04); }
+        .btn-secondary { background: var(--surface); color: var(--text-muted); border: 1px solid var(--border); }
+        .btn-secondary:hover { border-color: var(--danger); color: var(--danger); background: rgba(244,63,94,0.04); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .products-section { margin-top: 40px; }
+        .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
+        .section-title { font-weight: 800; font-size: 15px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+        .export-btn {
+            background: var(--surface); color: var(--text); border: 1px solid var(--border);
+            padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 700;
+            display: flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s;
+        }
+        .export-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .export-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+        .product-item {
+            background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg);
+            padding: 18px; margin-bottom: 12px; display: flex; justify-content: space-between;
+            align-items: center; box-shadow: var(--shadow-sm);
+            animation: slideUp 0.35s cubic-bezier(0.16,1,0.3,1);
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+        .product-item:hover { box-shadow: var(--shadow-md); border-color: var(--accent); }
+        .p-name { font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 2px; }
+        .p-meta { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+        .product-right { display: flex; align-items: center; gap: 16px; }
+        .p-price { font-weight: 800; color: var(--primary); font-size: 15px; }
+        .delete-btn {
+            background: transparent; color: var(--text-muted); border: none;
+            width: 32px; height: 32px; border-radius: 8px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+        }
+        .delete-btn:hover { color: var(--danger); background: rgba(244,63,94,0.1); }
+        .delete-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+        .empty-state {
+            text-align: center; padding: 48px 20px; color: var(--text-muted);
+            font-size: 13px; font-weight: 500; background: var(--card);
+            border-radius: var(--radius-lg); border: 1px dashed var(--border);
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none; width: 100%; height: 6px;
+            background: var(--border); border-radius: 99px; outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; width: 18px; height: 18px; background: var(--primary);
+            border-radius: 50%; cursor: pointer; transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:active { transform: scale(1.2); }
+
+        .sync-indicator {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: 11px; font-weight: 600; padding: 5px 10px;
+            border-radius: 99px; white-space: nowrap;
+        }
+        .sync-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+        .sync-dot.online { background: var(--success); box-shadow: 0 0 6px var(--success); }
+        .sync-dot.offline { background: var(--danger); }
+        .sync-dot.loading { background: var(--warning); animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+        @media (max-width: 480px) {
+            .container { padding: 0 12px; margin-top: 16px; }
+            .card { padding: 20px 16px; }
+            .result-card { padding: 24px 18px; }
+            .row2 { gap: 10px; }
+            .actions { gap: 10px; }
+            header { padding: 12px 16px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="nav-btn" onclick="toggleControlPanel()" title="لوحة الإعدادات">
+            <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <div class="brand">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            متجر حنين
+        </div>
+        <button class="nav-btn" id="themeToggleBtn" onclick="toggleTheme()" title="تبديل الوضع">
+            <svg id="themeIcon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>
+        </button>
+    </header>
+
+    <div class="container">
+
+        <div class="card">
+            <div class="field">
+                <label>اسم الصنف أو المنتج</label>
+                <input type="text" id="productName" placeholder="أدخل اسم المنتج هنا...">
+            </div>
+            <div class="row2">
+                <div class="field">
+                    <label>سعر الشراء (بالريال السعودي)</label>
+                    <input type="number" id="priceSAR" placeholder="0.00" min="0" oninput="calculate()">
+                </div>
+                <div class="field">
+                    <label>تكلفة الشحن لليمن</label>
+                    <input type="number" id="shipping" placeholder="0.00" min="0" value="0" oninput="calculate()">
+                </div>
+            </div>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div class="big-price">
+                <div class="label">سعر البيع الموصى به</div>
+                <div class="amount" id="finalPrice">0<span class="currency">ر.ي</span></div>
+            </div>
+            <div class="result-row">
+                <span>إجمالي التكاليف المحلية</span>
+                <span class="result-val" id="totalCost">0 ر.ي</span>
+            </div>
+            <div class="result-row">
+                <span>الضرائب والرسوم</span>
+                <span class="result-val" id="taxAmount">0 ر.ي</span>
+            </div>
+            <div class="result-row">
+                <span>صافي الربح المتوقع</span>
+                <span class="result-val" id="profitAmount" style="color: var(--success);">0 ر.ي</span>
+            </div>
+            <div class="result-row">
+                <span>العائد الاستثماري (ROI)</span>
+                <span class="result-val" id="roi">0%</span>
+            </div>
+            <div class="profit-bar"><div class="profit-fill" id="profitBar" style="width:0%"></div></div>
+            <div class="profit-info">
+                <span>التكلفة</span>
+                <span id="profitPct">الربح 0%</span>
+            </div>
+        </div>
+
+        <div class="actions">
+            <button class="btn-base btn-primary" onclick="calculate()">
+                <svg viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+                تحديث الحساب الفوري
+            </button>
+            <button class="btn-base btn-save" id="saveBtn" onclick="saveProduct()">
+                <svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>
+                حفظ البيانات
+            </button>
+            <button class="btn-base btn-secondary" onclick="clearForm()">
+                <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                مسح الحقول
+            </button>
+        </div>
+
+        <div class="products-section">
+            <div class="section-header">
+                <div class="section-title">
+                    قائمتك الذكية المحفوظة (<span id="productCount">0</span>)
+                    <span class="sync-indicator" id="syncIndicator">
+                        <span class="sync-dot loading" id="syncDot"></span>
+                        <span id="syncText">جارٍ التحميل...</span>
+                    </span>
+                </div>
+                <button class="export-btn" onclick="exportCSV()">
+                    <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    تصدير Excel
+                </button>
+            </div>
+            <div id="productsList">
+                <div class="empty-state">لا توجد أصناف مسجلة حتى الآن ✨</div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- لوحة الإعدادات -->
+    <div class="overlay" id="overlay" onclick="toggleControlPanel()"></div>
+    <div class="bottom-sheet" id="controlPanel">
+        <div class="sheet-indicator"></div>
+        <div class="sheet-header">
+            <h3>الإعدادات الاستراتيجية</h3>
+            <button class="nav-btn" onclick="toggleControlPanel()" style="border:none; background:transparent;">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M18 6 6 18M6 6l12 12"/></svg>
+            </button>
+        </div>
+        <div class="row2">
+            <div class="field">
+                <label>سعر صرف الريال السعودي</label>
+                <input type="number" id="exchangeRate" value="141.5" min="1" onchange="saveSettings()">
+            </div>
+            <div class="field">
+                <label>تكاليف إضافية (تغليف، جمارك)</label>
+                <input type="number" id="otherCosts" value="0" min="0" onchange="saveSettings()">
+            </div>
+        </div>
+        <div class="field">
+            <label>تكلفة الشحن الافتراضية</label>
+            <input type="number" id="defaultShipping" value="0" min="0" onchange="saveSettings()">
+        </div>
+        <div class="field">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label style="margin:0;">هامش الربح المستهدف</label>
+                <span id="marginLabel" style="color:var(--primary); font-weight:800; font-size:14px;">30%</span>
+            </div>
+            <input type="range" id="marginRange" min="0" max="200" value="30" oninput="syncSlider(this.value)">
+            <input type="number" id="marginInput" value="30" min="0" onchange="saveSettings()" style="margin-top:12px;">
+        </div>
+        <div class="row2">
+            <div class="field">
+                <label>الضرائب / رسوم الاستيراد (%)</label>
+                <input type="number" id="tax" value="0" min="0" max="100" onchange="saveSettings()">
+            </div>
+            <div class="field">
+                <label>قواعد تقريب الأسعار</label>
+                <select id="rounding" onchange="saveSettings()">
+                    <option value="none">بدون تقريب</option>
+                    <option value="up1">تقريب لأعلى (آحاد)</option>
+                    <option value="up5">تقريب لأقرب 5</option>
+                    <option value="up10">تقريب لأقرب 10</option>
+                    <option value="up50" selected>تقريب لأقرب 50</option>
+                    <option value="up100">تقريب لأقرب 100</option>
+                    <option value="up500">تقريب لأقرب 500</option>
+                    <option value="up1000">تقريب لأقرب 1000</option>
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyB__oAd7psqQUPh_FsvrUrjTruPvD9B8KM",
+            authDomain: "hanen-7fa47.firebaseapp.com",
+            projectId: "hanen-7fa47",
+            storageBucket: "hanen-7fa47.firebasestorage.app",
+            messagingSenderId: "417445614971",
+            appId: "1:417445614971:web:eb92c786549cbbcab059de"
+        };
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        db.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+
+        let settings = { exchangeRate:141.5, otherCosts:0, defaultShipping:0, margin:30, tax:0, rounding:'up50' };
+        let products = [];
+
+        db.collection('settings').doc('global').onSnapshot(doc => {
+            if(doc.exists) Object.assign(settings, doc.data());
+            else db.collection('settings').doc('global').set(settings);
+            applySettingsUI(); calculate();
+        });
+
+        function applySettingsUI() {
+            document.getElementById('exchangeRate').value = settings.exchangeRate;
+            document.getElementById('otherCosts').value = settings.otherCosts;
+            document.getElementById('defaultShipping').value = settings.defaultShipping;
+            document.getElementById('marginInput').value = settings.margin;
+            document.getElementById('marginRange').value = settings.margin;
+            document.getElementById('marginLabel').textContent = settings.margin + '%';
+            document.getElementById('tax').value = settings.tax;
+            document.getElementById('rounding').value = settings.rounding;
+            const shipInput = document.getElementById('shipping');
+            if(!shipInput.dataset.userEdited || shipInput.value==='') shipInput.value = settings.defaultShipping;
+        }
+
+        function saveSettings() {
+            settings.exchangeRate = +document.getElementById('exchangeRate').value || 141.5;
+            settings.otherCosts = +document.getElementById('otherCosts').value || 0;
+            settings.defaultShipping = +document.getElementById('defaultShipping').value || 0;
+            settings.margin = +document.getElementById('marginInput').value || 30;
+            settings.tax = +document.getElementById('tax').value || 0;
+            settings.rounding = document.getElementById('rounding').value;
+            db.collection('settings').doc('global').set(settings, {merge:true});
+            document.getElementById('marginLabel').textContent = settings.margin + '%';
+            calculate();
+        }
+
+        function syncSlider(v) {
+            document.getElementById('marginInput').value = v;
+            document.getElementById('marginLabel').textContent = v + '%';
+            saveSettings();
+        }
+
+        document.getElementById('shipping').addEventListener('input', function() { this.dataset.userEdited = 'true'; });
+
+        function applyRounding(v) {
+            if(settings.rounding==='none') return v;
+            const n = parseInt(settings.rounding.replace('up','')) || 1;
+            return Math.ceil(v/n)*n;
+        }
+        function fmt(n) { return n.toLocaleString('ar-EG',{maximumFractionDigits:0}); }
+
+        function calculate() {
+            const price = +document.getElementById('priceSAR').value || 0;
+            const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            const cost = price*settings.exchangeRate + ship + settings.otherCosts;
+            const taxAmt = cost*(settings.tax/100);
+            const withTax = cost+taxAmt;
+            const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
+            const final = applyRounding(raw);
+            const profit = final-withTax;
+            document.getElementById('finalPrice').innerHTML = `${fmt(final)} <span class="currency">ر.ي</span>`;
+            document.getElementById('totalCost').textContent = `${fmt(cost)} ر.ي`;
+            document.getElementById('taxAmount').textContent = `${fmt(taxAmt)} ر.ي`;
+            const pEl = document.getElementById('profitAmount'); pEl.textContent = `${fmt(profit)} ر.ي`; pEl.style.color = profit>=0 ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('roi').textContent = withTax>0 ? `${(profit/withTax*100).toFixed(1)}%` : '0%';
+            document.getElementById('profitBar').style.width = final>0 ? Math.min((profit/final)*100,100)+'%' : '0%';
+            document.getElementById('profitBar').style.background = profit>=0 ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('profitPct').textContent = `الربح ${final>0?(profit/final*100).toFixed(0):0}%`;
+        }
+
+        function clearForm() {
+            document.getElementById('productName').value = '';
+            document.getElementById('priceSAR').value = '';
+            const shipInput = document.getElementById('shipping');
+            shipInput.value = settings.defaultShipping;
+            shipInput.dataset.userEdited = '';
+            calculate();
+        }
+
+        db.collection('products').orderBy('createdAt','desc').onSnapshot(snap => {
+            products = snap.docs.map(d => ({id:d.id, ...d.data()}));
+            renderProducts();
+            updateSyncStatus('online', 'متزامن ✅');
+        });
+
+        function renderProducts() {
+            document.getElementById('productCount').textContent = products.length;
+            const list = document.getElementById('productsList');
+            if(!products.length) { list.innerHTML = '<div class="empty-state">لا توجد أصناف مسجلة حتى الآن ✨</div>'; return; }
+            list.innerHTML = products.map(p => `
+            <div class="product-item">
+                <div>
+                    <div class="p-name">${p.name}</div>
+                    <div class="p-meta">شراء: ${p.priceSAR} ر.س | تكلفة: ${fmt(p.totalCost)} ر.ي | هامش: ${p.margin}%</div>
+                </div>
+                <div class="product-right">
+                    <div class="p-price">${fmt(p.finalPrice)} ر.ي</div>
+                    <button class="delete-btn" onclick="deleteProduct('${p.id}')" title="حذف">
+                        <svg viewBox="0 0 24 24"><path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                    </button>
+                </div>
+            </div>`).join('');
+        }
+
+        function updateSyncStatus(status, text) {
+            const dot = document.getElementById('syncDot');
+            const txt = document.getElementById('syncText');
+            if(!dot||!txt) return;
+            dot.className = 'sync-dot '+status;
+            txt.textContent = text;
+        }
+
+        async function saveProduct() {
+            const name = document.getElementById('productName').value.trim() || 'صنف غير مسمى';
+            const price = +document.getElementById('priceSAR').value || 0;
+            const ship = +document.getElementById('shipping').value || settings.defaultShipping;
+            if(!price && !ship) return alert('الرجاء إدخال سعر الشراء أو تكلفة الشحن');
+            const cost = price*settings.exchangeRate + ship + settings.otherCosts;
+            const taxAmt = cost*(settings.tax/100);
+            const withTax = cost+taxAmt;
+            const raw = settings.margin>0 ? withTax/(1-settings.margin/100) : withTax;
+            const final = applyRounding(raw);
+            const saveBtn = document.getElementById('saveBtn');
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'جارٍ الحفظ...';
+            await db.collection('products').add({
+                name, priceSAR:price, shipping:ship, totalCost:cost, finalPrice:final,
+                profit:final-withTax, margin:settings.margin, tax:settings.tax,
+                date: new Date().toLocaleDateString('ar'), createdAt: new Date()
+            });
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = `<svg viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>حفظ البيانات`;
+            clearForm();
+        }
+
+        async function deleteProduct(id) {
+            if(!confirm('هل أنت متأكد من حذف هذا المنتج؟')) return;
+            await db.collection('products').doc(id).delete();
+        }
+
+        function exportCSV() {
+            if(!products.length) return alert('لا توجد منتجات لتصديرها');
+            let csv = '\uFEFFالاسم,الشراء (SAR),التكلفة (YER),البيع (YER),الربح,الهامش,التاريخ\n';
+            products.forEach(p => csv += `${p.name},${p.priceSAR},${fmt(p.totalCost)},${fmt(p.finalPrice)},${fmt(p.profit)},${p.margin}%,${p.date}\n`);
+            const blob = new Blob([csv],{type:'text/csv;charset=utf-8'});
+            const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='Pricing_Dashboard.csv'; a.click();
+        }
+
+        function toggleTheme() {
+            const html = document.documentElement;
+            const isLight = html.getAttribute('data-theme')==='light';
+            html.setAttribute('data-theme', isLight?'dark':'light');
+            const icon = document.getElementById('themeIcon');
+            icon.innerHTML = isLight ?
+                '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>' :
+                '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>';
+            localStorage.setItem('core-theme', isLight?'dark':'light');
+        }
+
+        if(localStorage.getItem('core-theme')==='dark') {
+            document.documentElement.setAttribute('data-theme','dark');
+            document.getElementById('themeIcon').innerHTML = '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>';
+        }
+
+        function toggleControlPanel() {
+            document.getElementById('controlPanel').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('open');
+        }
+
+        // إخفاء شريط التنقل في وضع التطبيق المستقل
+        if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+            document.documentElement.style.setProperty('--safe-area-inset-bottom', '0px');
+            // محاولة الدخول للشاشة الكاملة لإخفاء أي أشرطة متبقية
+            if (document.documentElement.requestFullscreen) {
+                document.documentElement.requestFullscreen().catch(()=>{});
+            }
+        }
+
+        calculate();
+    </script>
+</body>
+</html>
